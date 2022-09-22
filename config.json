@@ -1,0 +1,15 @@
+{
+    "mgga_settings" :
+    {
+	"seed": 1283123901319,
+	"population": 1000,
+	"generations": 20,
+	"crossover_prob": 0.7,
+	"mutation_prob": 0.2,
+	"copy_prob": 0.1,
+	"chromosome_length": 100,
+	"num_of_states": 6,
+	"percentage_worst": 0.25,
+	"tornament_size": 5
+    }
+}
