@@ -259,17 +259,7 @@ def main():
         sys.exit(1)
 
     # MGGA class
-    mgga = MGGA(data)
-    mgga.seed = data["mgga_settings"]["seed"]
-    mgga.population_size = data["mgga_settings"]["population"]
-    mgga.generations = data["mgga_settings"]["generations"]
-    mgga.crossover_prob = data["mgga_settings"]["crossover_prob"]
-    mgga.mutation_prob = data["mgga_settings"]["mutation_prob"]
-    mgga.copy_prob = data["mgga_settings"]["copy_prob"]
-    mgga.chromosome_length = data["mgga_settings"]["chromosome_length"]
-    mgga.num_genes = data["mgga_settings"]["num_of_states"]
-    mgga.percentage_worst = data["mgga_settings"]["percentage_worst"]
-    mgga.tourament_size = data["mgga_settings"]["tourament_size"]
+    mgga = MGGA(data["mgga_settings"])
     mgga.initialise()
 
     # initialise the first generation
