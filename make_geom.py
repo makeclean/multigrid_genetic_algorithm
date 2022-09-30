@@ -269,7 +269,7 @@ def main():
     mgga.chromosome_length = data["mgga_settings"]["chromosome_length"]
     mgga.num_genes = data["mgga_settings"]["num_of_states"]
     mgga.percentage_worst = data["mgga_settings"]["percentage_worst"]
-    mgga.tornament_size = data["mgga_settings"]["tornament_size"]
+    mgga.tourament_size = data["mgga_settings"]["tourament_size"]
     mgga.initialise()
 
     # initialise the first generation
