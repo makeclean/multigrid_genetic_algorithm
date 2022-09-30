@@ -1,5 +1,5 @@
 """
-This script builds a simple geometry 
+This script builds a simple geometry
 """
 
 import argparse
@@ -18,7 +18,7 @@ def add_element(element,material,fraction,fraction_type):
 
     for nuclide in to_add:
         material.add_nuclide(nuclide[0],nuclide[1],percent_type=nuclide[2])
-    
+
 class openmc_problem():
     def __init__(self):
         self.materials = {}
@@ -102,7 +102,7 @@ class openmc_problem():
         self.model.tallies = tallies
 
     # generate the fitness for the current generation and
-    # index 
+    # index
     def generate_fitness(self, directory, sp_name = "statepoint.10.h5"):
         sp = openmc.StatePoint(directory + '/' + sp_name)
         tbr = sp.get_tally(name = 'tbr')
@@ -110,8 +110,8 @@ class openmc_problem():
         [cells.append(x.id) for x in self.cells]
         tbr_data = tbr.get_slice(scores=['(n,t)'],filters=[openmc.CellFilter], filter_bins = [tuple(cells)])
         tbr_ave = tbr_data.mean
-        
-        # maximise tbr 
+
+        # maximise tbr
         fitness = sum(tbr_ave)[0][0]
         sp.close()
         return fitness
@@ -125,10 +125,10 @@ class openmc_problem():
                 self.cells[idx].fill = mat
                 idx = idx + 1
 
-    # given the genome build the region of geometry 
+    # given the genome build the region of geometry
     # to optimise
     def build_geometry(self):
-        
+
         univ = openmc.Universe(name='optimisation')
         cells = []
         idx = 0
@@ -179,7 +179,7 @@ class openmc_problem():
 
         # build the region to optimise
         optimisation = self.build_geometry()
-    
+
         # Create a cell filled with the lattice
         inside_boundary  = -self.y_planes[-1] & +self.y_planes[0] & -self.x_planes[-1] & +self.x_planes[0]
         outside_boundary = +self.y_planes[-1] | -self.y_planes[0] | +self.x_planes[-1] | -self.x_planes[0]
@@ -191,7 +191,7 @@ class openmc_problem():
 
         self.x_planes[0].boundary_type = 'vacuum'
         self.x_planes[-1].boundary_type = 'vacuum'
-    
+
         self.y_planes[0].boundary_type = 'vacuum'
         self.y_planes[-1].boundary_type = 'vacuum'
 
@@ -206,7 +206,7 @@ def build_slurm(generation):
     contents.append('#SBATCH -A UKAEA-AP001-CPU')
     contents.append('#SBATCH -p cclake')
     contents.append('#SBATCH --nodes=1')
-    contents.append('#SBATCH --ntasks=56')    
+    contents.append('#SBATCH --ntasks=56')
     contents.append('#SBATCH --time=36:00:00')
     contents.append('#SBATCH --output=array_%A-%a.out')
     contents.append('#SBATCH --array=1-1000')
@@ -224,8 +224,8 @@ def build_slurm(generation):
     contents.append('cd ..')
 
     with open('mgga_openmc.slurm','w') as f:
-        f.writelines(s + '\n' for s in contents) 
-        
+        f.writelines(s + '\n' for s in contents)
+
 def write_population(population, generation):
     data = {"population": [population]}
     json_string = json.dumps(data)
@@ -241,36 +241,36 @@ def read_population(generation):
     data = json.loads(jsonContent)
     return data["population"][0]
 
-if __name__ == '__main__':
-    
+def main():
     # Set up command-line arguments for generating/running the model
     parser = argparse.ArgumentParser()
-    parser.add_argument('--generate')
-    parser.add_argument('--run', action='store_true')
-    parser.add_argument('--initialise', action='store_true')
-    parser.add_argument('--input')
+    #parser.add_argument('--run', action='store_true')
+    parser.add_argument('--initialise', help="In this run mode, initialise the first generation population", action='store_true')
+    parser.add_argument('--generate', help="In this run mode, initialise the next generation population",)
+    parser.add_argument('--input', help="JSON file containing input settings", required=True)
     args = parser.parse_args()
-    # MGGA class
-    mgga = MGGA()
 
-    if args.input:
-        f = open(args.input)
-        data = json.load(f)
-        mgga.seed = data["mgga_settings"]["seed"]
-        mgga.population_size = data["mgga_settings"]["population"]
-        mgga.generations = data["mgga_settings"]["generations"]
-        mgga.crossover_prob = data["mgga_settings"]["crossover_prob"]
-        mgga.mutation_prob = data["mgga_settings"]["mutation_prob"]
-        mgga.copy_prob = data["mgga_settings"]["copy_prob"]
-        mgga.chromosome_length = data["mgga_settings"]["chromosome_length"]
-        mgga.num_genes = data["mgga_settings"]["num_of_states"]
-        mgga.percentage_worst = data["mgga_settings"]["percentage_worst"]
-        mgga.tornament_size = data["mgga_settings"]["tornament_size"]
-        mgga.initialise()
-        f.close()
-    else:
-        print('No input specified, use --input')
-        sys.exit()
+    try:
+        with open(args.input) as f:
+            data = json.load(f)
+            f.close()
+    except FileNotFoundError:
+        print("Could not find file",args.input)
+        sys.exit(1)
+
+    # MGGA class
+    mgga = MGGA(data)
+    mgga.seed = data["mgga_settings"]["seed"]
+    mgga.population_size = data["mgga_settings"]["population"]
+    mgga.generations = data["mgga_settings"]["generations"]
+    mgga.crossover_prob = data["mgga_settings"]["crossover_prob"]
+    mgga.mutation_prob = data["mgga_settings"]["mutation_prob"]
+    mgga.copy_prob = data["mgga_settings"]["copy_prob"]
+    mgga.chromosome_length = data["mgga_settings"]["chromosome_length"]
+    mgga.num_genes = data["mgga_settings"]["num_of_states"]
+    mgga.percentage_worst = data["mgga_settings"]["percentage_worst"]
+    mgga.tornament_size = data["mgga_settings"]["tornament_size"]
+    mgga.initialise()
 
     # initialise the first generation
     if args.initialise:
@@ -310,9 +310,12 @@ if __name__ == '__main__':
             openmc_problem.assign_genome(i)
             openmc_problem.model.export_to_xml(directory=str(generation) + '/'+str(idx))
         write_population(mgga.children,generation)
-        
+
 """
     # translate to a higher resolution
     if args.translate:
         genomes = mgga.population
-"""     
+"""
+
+if __name__ == '__main__':
+    main()
