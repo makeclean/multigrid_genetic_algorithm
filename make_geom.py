@@ -19,7 +19,7 @@ def add_element(element,material,fraction,fraction_type):
     for nuclide in to_add:
         material.add_nuclide(nuclide[0],nuclide[1],percent_type=nuclide[2])
 
-class openmc_problem():
+class OpenmcProblem():
     def __init__(self):
         self.materials = {}
         self.model = None
@@ -104,7 +104,12 @@ class openmc_problem():
     # generate the fitness for the current generation and
     # index
     def generate_fitness(self, directory, sp_name = "statepoint.10.h5"):
-        sp = openmc.StatePoint(directory + '/' + sp_name)
+        try:
+            sp = openmc.StatePoint(directory + '/' + sp_name)
+        except OSError:
+            print("Could not open file ",sp_name, " in directory ", directory)
+            sys.exit(1)
+
         tbr = sp.get_tally(name = 'tbr')
         cells = []
         [cells.append(x.id) for x in self.cells]
@@ -246,8 +251,9 @@ def main():
     parser = argparse.ArgumentParser()
     #parser.add_argument('--run', action='store_true')
     parser.add_argument('--initialise', help="In this run mode, initialise the first generation population", action='store_true')
-    parser.add_argument('--generate', help="In this run mode, initialise the next generation population",)
+    parser.add_argument('--generate', help="In this run mode, initialise the next generation population", action='store_true')
     parser.add_argument('--input', help="JSON file containing input settings", required=True)
+
     args = parser.parse_args()
 
     try:
@@ -260,18 +266,22 @@ def main():
 
     # MGGA class
     mgga = MGGA(data["mgga_settings"])
-    mgga.initialise()
 
     # initialise the first generation
     if args.initialise:
+        # Generate generic population set
         mgga.fill_population()
-        openmc_problem = openmc_problem()
+
+        # For each member of population make an openmc model
+        openmc_problem = OpenmcProblem()
         openmc_problem.setup(10,[0,100],10,[0,200])
-        for idx,i in enumerate(mgga.population):
-            openmc_problem.assign_genome(i)
-            openmc_problem.model.export_to_xml(directory='0/'+str(idx))
-        build_slurm(0)
-        write_population(mgga.population, 0)
+
+        generation_id=0
+        for index, genome in enumerate(mgga.population):
+            openmc_problem.assign_genome(genome)
+            openmc_problem.model.export_to_xml(directory=str(generation_id)+'/'+str(index))
+        build_slurm(generation_id)
+        write_population(mgga.population, generation_id)
 
     # need to write a filename dependent population file!!
 
@@ -281,7 +291,7 @@ def main():
         population = read_population(generation-1)
         mgga.population = population
         genomes = mgga.population
-        openmc_problem = openmc_problem()
+        openmc_problem = OpenmcProblem()
         openmc_problem.setup(10,[0,100],10,[0,200])
         # loop over each of the genomes
         fitness = []
@@ -296,8 +306,8 @@ def main():
         print('min fitness: ' + str(min(fitness)))
 
         mgga.sample_population()
-        for idx,i in enumerate(mgga.children):
-            openmc_problem.assign_genome(i)
+        for idx, genome in enumerate(mgga.children):
+            openmc_problem.assign_genome(genome)
             openmc_problem.model.export_to_xml(directory=str(generation) + '/'+str(idx))
         write_population(mgga.children,generation)
 

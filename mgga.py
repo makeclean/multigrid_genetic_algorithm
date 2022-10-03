@@ -11,6 +11,7 @@ class MGGA():
         if "seed" in settings.keys():
             seed = settings["seed"]
         self.seed = seed
+        random.seed(self.seed)
 
         # Settings
         self.population_size = settings["population"]
@@ -43,11 +44,6 @@ class MGGA():
         print("crossover happened: %f (%f%%)" % (self.count["crossover"],per_cross))
         print("clone happened: %f (%f%%)" % (self.count["clone"], per_clone))
         print("mutate happened: %f (%f%%)" % (self.count["mutate"], per_mutate))
-
-    def initialise(self):
-        if self.seed != 0:
-            random.seed(self.seed)
-
 
     # purely random mutation
     def __mutate(self, chromosome):
