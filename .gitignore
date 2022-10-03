@@ -1,0 +1,5 @@
+*#
+0/
+__pycache__/
+mgga_openmc.slurm
+population_0.json
