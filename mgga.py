@@ -5,18 +5,28 @@ import numpy as np
 import copy
 
 class MGGA():
-    def __init__(self, seed = 1283123901319):
-        self.population_size = 0
-        self.generations = 0
-        self.num_genes = 0
-        self.chromosome_length = 0
-        self.copy_prob = 0.0
-        self.crossover_prob = 0.0
-        self.mutation_prob = 0.0
+    def __init__(self, settings, seed = 1283123901319):
+
+        # Override default seed if it is in settings
+        if "seed" in settings.keys():
+            seed = settings["seed"]
+        self.seed = seed
+        random.seed(self.seed)
+
+        # Settings
+        self.population_size = settings["population"]
+        self.generations = settings["generations"]
+        self.num_genes = settings["num_of_states"]
+        self.chromosome_length = settings["chromosome_length"]
+        self.copy_prob = settings["copy_prob"]
+        self.crossover_prob = settings["crossover_prob"]
+        self.mutation_prob = settings["mutation_prob"]
+        self.percentage_worst = settings["percentage_worst"]
+        self.tourament_size = settings["tournament_size"]
+
         self.population = []
         self.children = []
         self.fitness = []
-        self.seed = seed
         self.count = {}
         self.count["mutate"] = 0
         self.count["crossover"] = 0
@@ -34,10 +44,6 @@ class MGGA():
         print("crossover happened: %f (%f%%)" % (self.count["crossover"],per_cross))
         print("clone happened: %f (%f%%)" % (self.count["clone"], per_clone))
         print("mutate happened: %f (%f%%)" % (self.count["mutate"], per_mutate))
-
-    def initialise(self):
-        if self.seed != 0: 
-            random.seed(self.seed)
 
     # purely random mutation
     def __mutate(self, chromosome):
@@ -57,14 +63,14 @@ class MGGA():
 
        for i in range(self.chromosome_length):
            select_parent = random.randint(0,1)
-           
+
            if select_parent == 0:
                child1[i] = chromosome1[i]
                child2[i] = chromosome2[i]
            else:
                child1[i] = chromosome2[i]
                child2[i] = chromosome1[i]
-       
+
        return [child1,child2]
 
     # copy the chromosome
@@ -76,7 +82,7 @@ class MGGA():
        for i in range(self.chromosome_length):
            chromosome[i] = random.randint(0,self.num_genes-1)
        return chromosome
-    
+
     def __sample(self,chromosome):
        rand = random.random()
        if rand <= self.copy_prob:

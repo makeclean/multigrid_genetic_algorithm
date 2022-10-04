@@ -1,5 +1,5 @@
 """
-This script builds a simple geometry 
+This script builds a simple geometry
 """
 
 import argparse
@@ -18,8 +18,8 @@ def add_element(element,material,fraction,fraction_type):
 
     for nuclide in to_add:
         material.add_nuclide(nuclide[0],nuclide[1],percent_type=nuclide[2])
-    
-class openmc_problem():
+
+class OpenmcProblem():
     def __init__(self):
         self.materials = {}
         self.model = None
@@ -102,16 +102,21 @@ class openmc_problem():
         self.model.tallies = tallies
 
     # generate the fitness for the current generation and
-    # index 
+    # index
     def generate_fitness(self, directory, sp_name = "statepoint.10.h5"):
-        sp = openmc.StatePoint(directory + '/' + sp_name)
+        try:
+            sp = openmc.StatePoint(directory + '/' + sp_name)
+        except OSError:
+            print("Could not open file ",sp_name, " in directory ", directory)
+            sys.exit(1)
+
         tbr = sp.get_tally(name = 'tbr')
         cells = []
         [cells.append(x.id) for x in self.cells]
         tbr_data = tbr.get_slice(scores=['(n,t)'],filters=[openmc.CellFilter], filter_bins = [tuple(cells)])
         tbr_ave = tbr_data.mean
-        
-        # maximise tbr 
+
+        # maximise tbr
         fitness = sum(tbr_ave)[0][0]
         sp.close()
         return fitness
@@ -125,10 +130,10 @@ class openmc_problem():
                 self.cells[idx].fill = mat
                 idx = idx + 1
 
-    # given the genome build the region of geometry 
+    # given the genome build the region of geometry
     # to optimise
     def build_geometry(self):
-        
+
         univ = openmc.Universe(name='optimisation')
         cells = []
         idx = 0
@@ -179,7 +184,7 @@ class openmc_problem():
 
         # build the region to optimise
         optimisation = self.build_geometry()
-    
+
         # Create a cell filled with the lattice
         inside_boundary  = -self.y_planes[-1] & +self.y_planes[0] & -self.x_planes[-1] & +self.x_planes[0]
         outside_boundary = +self.y_planes[-1] | -self.y_planes[0] | +self.x_planes[-1] | -self.x_planes[0]
@@ -191,7 +196,7 @@ class openmc_problem():
 
         self.x_planes[0].boundary_type = 'vacuum'
         self.x_planes[-1].boundary_type = 'vacuum'
-    
+
         self.y_planes[0].boundary_type = 'vacuum'
         self.y_planes[-1].boundary_type = 'vacuum'
 
@@ -206,7 +211,7 @@ def build_slurm(generation):
     contents.append('#SBATCH -A UKAEA-AP001-CPU')
     contents.append('#SBATCH -p cclake')
     contents.append('#SBATCH --nodes=1')
-    contents.append('#SBATCH --ntasks=56')    
+    contents.append('#SBATCH --ntasks=56')
     contents.append('#SBATCH --time=36:00:00')
     contents.append('#SBATCH --output=array_%A-%a.out')
     contents.append('#SBATCH --array=1-1000')
@@ -224,8 +229,8 @@ def build_slurm(generation):
     contents.append('cd ..')
 
     with open('mgga_openmc.slurm','w') as f:
-        f.writelines(s + '\n' for s in contents) 
-        
+        f.writelines(s + '\n' for s in contents)
+
 def write_population(population, generation):
     data = {"population": [population]}
     json_string = json.dumps(data)
@@ -241,47 +246,42 @@ def read_population(generation):
     data = json.loads(jsonContent)
     return data["population"][0]
 
-if __name__ == '__main__':
-    
+def main():
     # Set up command-line arguments for generating/running the model
     parser = argparse.ArgumentParser()
-    parser.add_argument('--generate')
-    parser.add_argument('--run', action='store_true')
-    parser.add_argument('--initialise', action='store_true')
-    parser.add_argument('--input')
-    args = parser.parse_args()
-    # MGGA class
-    mgga = MGGA()
+    #parser.add_argument('--run', action='store_true')
+    parser.add_argument('--initialise', help="In this run mode, initialise the first generation population", action='store_true')
+    parser.add_argument('--generate', help="In this run mode, initialise the next generation population", action='store_true')
+    parser.add_argument('--input', help="JSON file containing input settings", required=True)
 
-    if args.input:
-        f = open(args.input)
-        data = json.load(f)
-        mgga.seed = data["mgga_settings"]["seed"]
-        mgga.population_size = data["mgga_settings"]["population"]
-        mgga.generations = data["mgga_settings"]["generations"]
-        mgga.crossover_prob = data["mgga_settings"]["crossover_prob"]
-        mgga.mutation_prob = data["mgga_settings"]["mutation_prob"]
-        mgga.copy_prob = data["mgga_settings"]["copy_prob"]
-        mgga.chromosome_length = data["mgga_settings"]["chromosome_length"]
-        mgga.num_genes = data["mgga_settings"]["num_of_states"]
-        mgga.percentage_worst = data["mgga_settings"]["percentage_worst"]
-        mgga.tornament_size = data["mgga_settings"]["tornament_size"]
-        mgga.initialise()
-        f.close()
-    else:
-        print('No input specified, use --input')
-        sys.exit()
+    args = parser.parse_args()
+
+    try:
+        with open(args.input) as f:
+            data = json.load(f)
+            f.close()
+    except FileNotFoundError:
+        print("Could not find file",args.input)
+        sys.exit(1)
+
+    # MGGA class
+    mgga = MGGA(data["mgga_settings"])
 
     # initialise the first generation
     if args.initialise:
+        # Generate generic population set
         mgga.fill_population()
-        openmc_problem = openmc_problem()
+
+        # For each member of population make an openmc model
+        openmc_problem = OpenmcProblem()
         openmc_problem.setup(10,[0,100],10,[0,200])
-        for idx,i in enumerate(mgga.population):
-            openmc_problem.assign_genome(i)
-            openmc_problem.model.export_to_xml(directory='0/'+str(idx))
-        build_slurm(0)
-        write_population(mgga.population, 0)
+
+        generation_id=0
+        for index, genome in enumerate(mgga.population):
+            openmc_problem.assign_genome(genome)
+            openmc_problem.model.export_to_xml(directory=str(generation_id)+'/'+str(index))
+        build_slurm(generation_id)
+        write_population(mgga.population, generation_id)
 
     # need to write a filename dependent population file!!
 
@@ -291,7 +291,7 @@ if __name__ == '__main__':
         population = read_population(generation-1)
         mgga.population = population
         genomes = mgga.population
-        openmc_problem = openmc_problem()
+        openmc_problem = OpenmcProblem()
         openmc_problem.setup(10,[0,100],10,[0,200])
         # loop over each of the genomes
         fitness = []
@@ -306,13 +306,16 @@ if __name__ == '__main__':
         print('min fitness: ' + str(min(fitness)))
 
         mgga.sample_population()
-        for idx,i in enumerate(mgga.children):
-            openmc_problem.assign_genome(i)
+        for idx, genome in enumerate(mgga.children):
+            openmc_problem.assign_genome(genome)
             openmc_problem.model.export_to_xml(directory=str(generation) + '/'+str(idx))
         write_population(mgga.children,generation)
-        
+
 """
     # translate to a higher resolution
     if args.translate:
         genomes = mgga.population
-"""     
+"""
+
+if __name__ == '__main__':
+    main()

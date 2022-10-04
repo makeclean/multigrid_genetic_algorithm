@@ -10,6 +10,6 @@
 	"chromosome_length": 100,
 	"num_of_states": 6,
 	"percentage_worst": 0.25,
-	"tornament_size": 5
+	"tournament_size": 5
     }
 }
