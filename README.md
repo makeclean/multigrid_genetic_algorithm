@@ -12,6 +12,14 @@ Prerequisites
 Usage
 =====
 ```
-usage: make_geom.py [-h] [--initialise] [--generate GENERATE] --input INPUT
+python make_geom.py [-h] [--initialise] [--generate GENERATE] --input INPUT
+
+required:
+--input INPUT  JSON file containing input settings
+
+optional arguments:
+  -h, --help     show this help message and exit
+  --initialise   In this run mode, initialise the first generation population
+  --generate     In this run mode, initialise the next generation population
 ```
 
